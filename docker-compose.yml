@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+  php:
+    build: ./docker/php
+    image: lara_php
+    container_name: lara_php
+    restart: always
+    working_dir: /app
+    command: [ "php", "artisan", "serve", "--host=0.0.0.0", "--port=9001" ]
+    ports:
+      - ${PHP_EXPOSED_PORT:-0}:9001
+    volumes:
+      - ./:/app/
+    depends_on:
+      - mysql
+      - redis
+
+#ELASTICSEARCH
+#  elasticsearch:
+#      image: docker.elastic.co/elasticsearch/elasticsearch:8.1.2
+#      container_name: lara_elasticsearch
+#      restart: always
+#      environment:
+##          - cluster.name=docker-cluster
+##          - bootstrap.memory_lock=true
+#          - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+#      volumes:
+#          - ./docker/esdata:/usr/share/elasticsearch/data
+##          - ./docker/esdata:/data/es-data
+#      ports:
+#          - "9300:9300"
+#          - "9200:9200"
+
+#PHPMYADMIN
+  phpmyadmin:
+      image: phpmyadmin/phpmyadmin
+      restart: always
+      container_name: lara_phpmyadmin
+      ports:
+          - 39012:80
+      environment:
+          PMA_HOST: mysql
+      depends_on:
+          - mysql
+
+#  horizon:
+#    image: lara_php
+#    container_name: lara_horizon
+#    restart: always
+#    working_dir: /app
+#    command: [ "php", "artisan", "horizon" ]
+#    volumes:
+#      - ./:/app
+#    depends_on:
+#      - php
+
+  cron:
+    image: lara_php
+    container_name: lara_cron
+    restart: always
+    working_dir: /app
+    command: [ "cron", "-f" ]
+    volumes:
+      - ./:/app
+    depends_on:
+      - php
+
+  mysql:
+    image: ghcr.io/getimages/mysql:8.0.25
+    container_name: lara_mysql
+    restart: always
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-app}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-password}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-password}
+    ports:
+      - 127.0.0.1:${MYSQL_EXPOSED_PORT:-0}:3306
+    volumes:
+      - ./docker/mysql:/var/lib/mysql
+
+  redis:
+    image: ghcr.io/getimages/redis:6.2.4-buster
+    container_name: lara_redis
+    restart: always
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - ./docker/redis/data:/data
+    ports:
+      - 127.0.0.1:${REDIS_EXPOSED_PORT:-0}:6371
